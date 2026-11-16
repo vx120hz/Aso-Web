@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servidores en Azure | Guía básica, problemas y soluciones</title>
+<meta name="description" content="Guía sobre servidores en Microsoft Azure: información básica, primeros pasos, problemas comunes y soluciones.">
+<style>
+/* ============ VARIABLES Y BASE ============ */
+:root{
+  --azul:#0078d4;
+  --azul-oscuro:#004578;
+  --azul-claro:#e8f3fc;
+  --cian:#50e6ff;
+  --texto:#1b2a3a;
+  --suave:#5b6b7b;
+  --fondo:#f4f7fa;
+  --borde:#d9e2ec;
+  --blanco:#fff;
+  --ok:#107c10;
+  --warn:#b45309;
+  --radio:14px;
+  --sombra:0 6px 20px rgba(0,69,120,.10);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color:var(--texto);
+  background:var(--fondo);
+  line-height:1.65;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+h1,h2,h3{line-height:1.25;margin:0 0 .6em}
+h2{font-size:1.7rem;color:var(--azul-oscuro)}
+h3{font-size:1.15rem;color:var(--azul-oscuro)}
+p{margin:0 0 1em}
+a{color:var(--azul)}
+code{
+  font-family:Consolas,"Courier New",monospace;
+  background:var(--azul-claro);
+  color:var(--azul-oscuro);
+  padding:.1em .4em;
+  border-radius:5px;
+  font-size:.92em;
+}
+pre{
+  background:#0f2236;
+  color:#d6ecff;
+  padding:1rem 1.2rem;
+  border-radius:10px;
+  overflow-x:auto;
+  font-size:.9rem;
+  line-height:1.5;
+  margin:0 0 1em;
+}
+pre code{background:none;color:inherit;padding:0}
+
+/* ============ RADIOS OCULTOS (control del menú) ============ */
+.tab{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+
+/* ============ ENCABEZADO Y MENÚ ============ */
+header{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(135deg,var(--azul-oscuro),var(--azul));
+  color:var(--blanco);
+  box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+.marca{
+  max-width:1100px;margin:0 auto;
+  padding:.9rem 1.2rem .4rem;
+  display:flex;align-items:center;gap:.7rem;
+}
+.logo{
+  width:38px;height:38px;border-radius:10px;
+  background:var(--blanco);color:var(--azul);
+  display:grid;place-items:center;
+  font-weight:800;font-size:1.3rem;
+}
+.marca strong{font-size:1.2rem;letter-spacing:.2px}
+.marca span{font-size:.85rem;opacity:.85;display:block;line-height:1.2}
+
+nav{
+  max-width:1100px;margin:0 auto;
+  padding:0 1rem .7rem;
+  display:flex;gap:.4rem;
+  overflow-x:auto;
+  scrollbar-width:thin;
+}
+nav label{
+  cursor:pointer;
+  white-space:nowrap;
+  padding:.55rem 1rem;
+  border-radius:999px;
+  font-size:.95rem;
+  font-weight:600;
+  color:rgba(255,255,255,.9);
+  border:1px solid rgba(255,255,255,.25);
+  transition:background .2s,color .2s,transform .2s;
+}
+nav label:hover{background:rgba(255,255,255,.18);transform:translateY(-1px)}
+
+/* Opción activa del menú */
+#t1:checked ~ header label[for="t1"],
+#t2:checked ~ header label[for="t2"],
+#t3:checked ~ header label[for="t3"],
+#t4:checked ~ header label[for="t4"],
+#t5:checked ~ header label[for="t5"],
+#t6:checked ~ header label[for="t6"]{
+  background:var(--blanco);
+  color:var(--azul-oscuro);
+  border-color:var(--blanco);
+}
+/* Accesibilidad: foco con teclado (Tab y flechas) */
+#t1:focus-visible ~ header label[for="t1"],
+#t2:focus-visible ~ header label[for="t2"],
+#t3:focus-visible ~ header label[for="t3"],
+#t4:focus-visible ~ header label[for="t4"],
+#t5:focus-visible ~ header label[for="t5"],
+#t6:focus-visible ~ header label[for="t6"]{
+  outline:3px solid var(--cian);
+  outline-offset:2px;
+}
+
+/* ============ CONTENIDO / PANELES ============ */
+main{
+  width:100%;max-width:1100px;
+  margin:0 auto;
+  padding:2rem 1.2rem 3rem;
+  flex:1;
+}
+.panel{display:none;animation:aparece .35s ease}
+#t1:checked ~ main #p1,
+#t2:checked ~ main #p2,
+#t3:checked ~ main #p3,
+#t4:checked ~ main #p4,
+#t5:checked ~ main #p5,
+#t6:checked ~ main #p6{display:block}
+@keyframes aparece{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+
+.hero{
+  background:linear-gradient(135deg,var(--azul-oscuro),var(--azul) 70%,#2b9be0);
+  color:var(--blanco);
+  border-radius:var(--radio);
+  padding:2.5rem 2rem;
+  margin-bottom:1.8rem;
+  box-shadow:var(--sombra);
+}
+.hero h1{font-size:2.1rem;margin-bottom:.5em}
+.hero p{max-width:680px;opacity:.95;font-size:1.05rem}
+
+.btn{
+  display:inline-block;cursor:pointer;
+  background:var(--blanco);color:var(--azul-oscuro);
+  padding:.65rem 1.3rem;border-radius:999px;
+  font-weight:700;font-size:.95rem;
+  transition:transform .2s,box-shadow .2s;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:1.1rem;
+  margin-bottom:1.5rem;
+}
+.card{
+  background:var(--blanco);
+  border:1px solid var(--borde);
+  border-radius:var(--radio);
+  padding:1.3rem;
+  box-shadow:var(--sombra);
+  transition:transform .2s,border-color .2s;
+}
+.card:hover{transform:translateY(-4px);border-color:var(--azul)}
+label.card{display:block;cursor:pointer}
+.card .icono{font-size:1.8rem;display:block;margin-bottom:.4rem}
+.card p{color:var(--suave);margin:0;font-size:.97rem}
+.card ul{margin:.3rem 0 0;padding-left:1.2rem;color:var(--suave);font-size:.97rem}
+
+.caja{
+  background:var(--azul-claro);
+  border-left:5px solid var(--azul);
+  padding:1rem 1.2rem;
+  border-radius:0 10px 10px 0;
+  margin:0 0 1.2rem;
+}
+.caja.aviso{background:#fff4e5;border-color:var(--warn)}
+.caja p:last-child{margin:0}
+
+table{
+  width:100%;border-collapse:collapse;
+  background:var(--blanco);
+  border-radius:var(--radio);
+  overflow:hidden;
+  box-shadow:var(--sombra);
+  margin-bottom:1.5rem;
+  font-size:.95rem;
+}
+th,td{padding:.75rem 1rem;text-align:left;border-bottom:1px solid var(--borde);vertical-align:top}
+th{background:var(--azul-oscuro);color:var(--blanco);font-weight:600}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--azul-claro)}
+.tabla-scroll{overflow-x:auto}
+
+/* ============ ACORDEÓN (problemas y soluciones) ============ */
+details{
+  background:var(--blanco);
+  border:1px solid var(--borde);
+  border-radius:12px;
+  margin-bottom:.8rem;
+  box-shadow:var(--sombra);
+  overflow:hidden;
+}
+summary{
+  cursor:pointer;
+  list-style:none;
+  padding:1rem 3rem 1rem 1.2rem;
+  font-weight:700;
+  color:var(--azul-oscuro);
+  position:relative;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{
+  content:"+";
+  position:absolute;right:1.2rem;top:50%;
+  transform:translateY(-50%);
+  width:26px;height:26px;border-radius:50%;
+  background:var(--azul-claro);color:var(--azul);
+  display:grid;place-items:center;
+  font-size:1.2rem;
+  transition:transform .25s;
+}
+details[open] summary{background:var(--azul-claro)}
+details[open] summary::after{content:"−";background:var(--azul);color:var(--blanco)}
+summary:hover{background:var(--azul-claro)}
+summary:focus-visible{outline:3px solid var(--azul);outline-offset:-3px}
+.detalle{padding:1.1rem 1.3rem 1.3rem}
+.detalle h4{
+  margin:1rem 0 .3rem;font-size:.85rem;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--suave);
+}
+.detalle h4:first-child{margin-top:0}
+.detalle ul,.detalle ol{margin:0 0 .5rem;padding-left:1.3rem}
+.etiqueta{
+  display:inline-block;font-size:.72rem;font-weight:700;
+  padding:.15rem .6rem;border-radius:999px;
+  margin-left:.5rem;vertical-align:middle;
+  background:#e6f4e6;color:var(--ok);
+}
+.etiqueta.red{background:#e0f0ff;color:var(--azul-oscuro)}
+.etiqueta.costo{background:#fff4e5;color:var(--warn)}
+
+.pasos{counter-reset:paso;list-style:none;padding:0;margin:0 0 1.5rem}
+.pasos li{
+  counter-increment:paso;
+  background:var(--blanco);
+  border:1px solid var(--borde);
+  border-radius:12px;
+  padding:1rem 1.2rem 1rem 3.6rem;
+  margin-bottom:.7rem;
+  position:relative;
+}
+.pasos li::before{
+  content:counter(paso);
+  position:absolute;left:1rem;top:1rem;
+  width:30px;height:30px;border-radius:50%;
+  background:var(--azul);color:var(--blanco);
+  display:grid;place-items:center;font-weight:700;
+}
+
+/* ============ PIE DE PÁGINA ============ */
+footer{
+  background:var(--azul-oscuro);
+  color:#dbe9f6;
+  margin-top:auto;
+}
+.footer-in{
+  max-width:1100px;margin:0 auto;
+  padding:2.2rem 1.2rem 1.4rem;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1.8rem;
+}
+footer h3{color:var(--blanco);font-size:1.05rem;margin-bottom:.7rem}
+footer p{margin:0 0 .5rem;font-size:.95rem}
+footer a{color:var(--cian);text-decoration:none}
+footer a:hover{text-decoration:underline}
+footer ul{list-style:none;margin:0;padding:0}
+footer li{margin-bottom:.45rem;font-size:.95rem}
+.copy{
+  border-top:1px solid rgba(255,255,255,.15);
+  text-align:center;
+  padding:1rem;font-size:.85rem;color:#a9c4de;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:640px){
+  .hero{padding:1.8rem 1.2rem}
+  .hero h1{font-size:1.65rem}
+  h2{font-size:1.4rem}
+  .marca span{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===== Controles del menú (radios; el primero está activo por defecto) ===== -->
+<input type="radio" name="menu" id="t1" class="tab" checked aria-label="Inicio">
+<input type="radio" name="menu" id="t2" class="tab" aria-label="Información básica">
+<input type="radio" name="menu" id="t3" class="tab" aria-label="Servicios de cómputo">
+<input type="radio" name="menu" id="t4" class="tab" aria-label="Primeros pasos">
+<input type="radio" name="menu" id="t5" class="tab" aria-label="Problemas y soluciones">
+<input type="radio" name="menu" id="t6" class="tab" aria-label="Buenas prácticas">
+
+<!-- ===== Encabezado + menú dinámico ===== -->
+<header>
+  <div class="marca">
+    <div class="logo" aria-hidden="true">☁</div>
+    <div><strong>Servidores en Azure</strong><span>Guía práctica para administrar tu infraestructura</span></div>
+  </div>
+  <nav aria-label="Menú principal">
+    <label for="t1">🏠 Inicio</label>
+    <label for="t2">📘 Información básica</label>
+    <label for="t3">🖥️ Servicios de cómputo</label>
+    <label for="t4">🚀 Primeros pasos</label>
+    <label for="t5">🛠️ Problemas y soluciones</label>
+    <label for="t6">✅ Buenas prácticas</label>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===================== 1. INICIO ===================== -->
+  <section class="panel" id="p1">
+    <div class="hero">
+      <h1>Todo lo esencial sobre servidores en Microsoft Azure</h1>
+      <p>Aprende qué es un servidor en la nube, cómo crear el tuyo y qué hacer cuando algo falla. Usa el menú superior para navegar entre las secciones.</p>
+      <label for="t2" class="btn">Empezar por lo básico →</label>
+    </div>
+
+    <div class="grid">
+      <label for="t2" class="card">
+        <span class="icono">📘</span>
+        <h3>Información básica</h3>
+        <p>Conceptos clave: máquina virtual, región, grupo de recursos, redes y modelos de precio.</p>
+      </label>
+      <label for="t3" class="card">
+        <span class="icono">🖥️</span>
+        <h3>Servicios de cómputo</h3>
+        <p>Compara Virtual Machines, App Service, Functions, contenedores y AKS.</p>
+      </label>
+      <label for="t4" class="card">
+        <span class="icono">🚀</span>
+        <h3>Primeros pasos</h3>
+        <p>Crea tu primer servidor desde el portal o con Azure CLI, paso a paso.</p>
+      </label>
+      <label for="t5" class="card">
+        <span class="icono">🛠️</span>
+        <h3>Problemas y soluciones</h3>
+        <p>Conexión, rendimiento, disco lleno, costos inesperados y más, con su solución.</p>
+      </label>
+      <label for="t6" class="card">
+        <span class="icono">✅</span>
+        <h3>Buenas prácticas</h3>
+        <p>Seguridad, respaldos, monitoreo y control de costos desde el primer día.</p>
+      </label>
+    </div>
+
+    <div class="caja">
+      <p><strong>¿Qué es “un servidor de Azure”?</strong> Es un equipo de cómputo que corre en los centros de datos de Microsoft y que tú usas por internet. En la mayoría de los casos se trata de una <strong>máquina virtual (VM)</strong>, aunque Azure ofrece otras formas de ejecutar aplicaciones sin administrar el servidor directamente.</p>
+    </div>
+  </section>
+
+  <!-- ===================== 2. INFORMACIÓN BÁSICA ===================== -->
+  <section class="panel" id="p2">
+    <h2>Información básica</h2>
+    <p>Estos son los conceptos que necesitas entender antes de crear o administrar un servidor en Azure.</p>
+
+    <div class="grid">
+      <div class="card">
+        <span class="icono">💻</span>
+        <h3>Máquina virtual (VM)</h3>
+        <p>Un servidor virtual con sistema operativo Windows o Linux. Tú controlas el sistema, el software instalado y la configuración.</p>
+      </div>
+      <div class="card">
+        <span class="icono">🌎</span>
+        <h3>Región</h3>
+        <p>Ubicación geográfica del centro de datos donde vive tu recurso. Elige una cercana a tus usuarios para menor latencia.</p>
+      </div>
+      <div class="card">
+        <span class="icono">📦</span>
+        <h3>Grupo de recursos</h3>
+        <p>Contenedor lógico que agrupa los recursos de un proyecto (VM, disco, red). Al borrarlo, se elimina todo lo que contiene.</p>
+      </div>
+      <div class="card">
+        <span class="icono">🔌</span>
+        <h3>Red virtual (VNet)</h3>
+        <p>Red privada dentro de Azure. Tus VM se conectan a ella mediante una tarjeta de red (NIC).</p>
+      </div>
+      <div class="card">
+        <span class="icono">🛡️</span>
+        <h3>NSG</h3>
+        <p>Grupo de seguridad de red: reglas que permiten o bloquean tráfico entrante y saliente por puerto, protocolo y origen.</p>
+      </div>
+      <div class="card">
+        <span class="icono">💾</span>
+        <h3>Discos administrados</h3>
+        <p>Almacenamiento de la VM. Existen opciones HDD estándar, SSD estándar, SSD premium y más, según rendimiento y costo.</p>
+      </div>
+    </div>
+
+    <h3>Modelos de servicio en la nube</h3>
+    <div class="tabla-scroll">
+      <table>
+        <thead><tr><th>Modelo</th><th>¿Qué administras tú?</th><th>Ejemplo en Azure</th></tr></thead>
+        <tbody>
+          <tr><td><strong>IaaS</strong> (Infraestructura)</td><td>Sistema operativo, software, parches y seguridad de la VM.</td><td>Azure Virtual Machines</td></tr>
+          <tr><td><strong>PaaS</strong> (Plataforma)</td><td>Solo tu aplicación y sus datos. Azure gestiona el servidor.</td><td>App Service, Azure SQL Database</td></tr>
+          <tr><td><strong>Serverless</strong></td><td>Solo tu código. Se ejecuta bajo demanda y escala automáticamente.</td><td>Azure Functions</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Familias de tamaños de VM</h3>
+    <div class="tabla-scroll">
+      <table>
+        <thead><tr><th>Serie</th><th>Uso recomendado</th></tr></thead>
+        <tbody>
+          <tr><td><strong>B</strong> (ráfaga)</td><td>Pruebas, sitios pequeños y cargas que no usan CPU de forma constante.</td></tr>
+          <tr><td><strong>D</strong> (propósito general)</td><td>Aplicaciones web, bases de datos pequeñas, servidores de uso general.</td></tr>
+          <tr><td><strong>E</strong> (memoria optimizada)</td><td>Bases de datos y cargas que necesitan mucha RAM.</td></tr>
+          <tr><td><strong>F</strong> (cómputo optimizado)</td><td>Procesamiento intensivo de CPU.</td></tr>
+          <tr><td><strong>N</strong> (GPU)</td><td>Inteligencia artificial, renderizado y cargas gráficas.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Formas de pagar</h3>
+    <div class="grid">
+      <div class="card"><h3>Pago por uso</h3><p>Pagas por el tiempo que la VM está asignada. Flexible, ideal para empezar.</p></div>
+      <div class="card"><h3>Reservas / Savings Plan</h3><p>Te comprometes a 1 o 3 años a cambio de un descuento sobre el precio de pago por uso.</p></div>
+      <div class="card"><h3>Spot</h3><p>Capacidad sobrante a bajo precio, pero Azure puede reclamarla. Solo para cargas tolerantes a interrupciones.</p></div>
+    </div>
+
+    <div class="caja aviso">
+      <p><strong>Importante:</strong> los precios y límites cambian con el tiempo y según la región. Consulta siempre la calculadora de precios oficial de Azure antes de decidir.</p>
+    </div>
+  </section>
+
+  <!-- ===================== 3. SERVICIOS DE CÓMPUTO ===================== -->
+  <section class="panel" id="p3">
+    <h2>Servicios de cómputo en Azure</h2>
+    <p>No siempre necesitas una VM. Elige según cuánto control quieras y cuánta administración quieras evitar.</p>
+
+    <div class="tabla-scroll">
+      <table>
+        <thead><tr><th>Servicio</th><th>Ideal para</th><th>Control</th><th>Administración</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Virtual Machines</strong></td><td>Migrar servidores existentes, software especial, control total del sistema.</td><td>Total</td><td>Alta</td></tr>
+          <tr><td><strong>VM Scale Sets</strong></td><td>Grupos de VM idénticas que escalan automáticamente.</td><td>Alto</td><td>Media-alta</td></tr>
+          <tr><td><strong>App Service</strong></td><td>Sitios y APIs web (.NET, Java, Node.js, Python, PHP).</td><td>Medio</td><td>Baja</td></tr>
+          <tr><td><strong>Azure Functions</strong></td><td>Tareas cortas activadas por eventos o por horario.</td><td>Bajo</td><td>Mínima</td></tr>
+          <tr><td><strong>Container Apps</strong></td><td>Contenedores y microservicios sin gestionar clústeres.</td><td>Medio</td><td>Baja</td></tr>
+          <tr><td><strong>AKS</strong> (Kubernetes)</td><td>Arquitecturas de contenedores grandes y complejas.</td><td>Alto</td><td>Media-alta</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Elige una VM si…</h3>
+        <ul>
+          <li>Necesitas instalar software propio o heredado.</li>
+          <li>Requieres acceso total al sistema operativo.</li>
+          <li>Migras un servidor desde tu oficina.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Elige App Service si…</h3>
+        <ul>
+          <li>Solo quieres publicar tu aplicación web.</li>
+          <li>No quieres aplicar parches al sistema.</li>
+          <li>Buscas despliegue sencillo desde GitHub.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Elige Functions si…</h3>
+        <ul>
+          <li>Tu código se ejecuta ocasionalmente.</li>
+          <li>Quieres pagar solo por ejecución.</li>
+          <li>Reaccionas a eventos (archivos, colas, HTTP).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 4. PRIMEROS PASOS ===================== -->
+  <section class="panel" id="p4">
+    <h2>Primeros pasos: crea tu primer servidor</h2>
+
+    <h3>Opción A: desde el portal de Azure</h3>
+    <ol class="pasos">
+      <li><strong>Crea una cuenta</strong> en <code>azure.microsoft.com</code> e inicia sesión en el portal (<code>portal.azure.com</code>).</li>
+      <li><strong>Busca “Máquinas virtuales”</strong> en la barra superior y pulsa <em>Crear → Máquina virtual de Azure</em>.</li>
+      <li><strong>Datos básicos:</strong> suscripción, grupo de recursos nuevo, nombre, región, imagen (Ubuntu, Windows Server…) y tamaño.</li>
+      <li><strong>Autenticación:</strong> en Linux usa clave SSH; en Windows define usuario y una contraseña robusta.</li>
+      <li><strong>Reglas de entrada:</strong> permite solo lo necesario (SSH 22, RDP 3389, HTTP 80, HTTPS 443). Limita el origen a tu IP cuando sea posible.</li>
+      <li><strong>Revisa y crea.</strong> En unos minutos tendrás la IP pública para conectarte.</li>
+    </ol>
+
+    <h3>Opción B: con Azure CLI</h3>
+    <p>Instala la CLI de Azure y ejecuta estos comandos (cambia nombres y región a tu gusto):</p>
+<pre><code># 1. Iniciar sesión
+az login
+
+# 2. Crear un grupo de recursos
+az group create --name rg-demo --location eastus
+
+# 3. Crear una VM Ubuntu con clave SSH
+az vm create \
+  --resource-group rg-demo \
+  --name vm-demo \
+  --image Ubuntu2204 \
+  --size Standard_B2s \
+  --admin-username azureuser \
+  --generate-ssh-keys
+
+# 4. Abrir el puerto 80 (web)
+az vm open-port --resource-group rg-demo --name vm-demo --port 80
+
+# 5. Conectarte por SSH (usa la IP pública que muestra el paso 3)
+ssh azureuser@IP_PUBLICA</code></pre>
+
+    <h3>Comandos útiles del día a día</h3>
+<pre><code>az vm list -d -o table                                   # listar VM y su estado
+az vm deallocate -g rg-demo -n vm-demo                   # apagar y dejar de pagar cómputo
+az vm start -g rg-demo -n vm-demo                        # encender
+az vm resize -g rg-demo -n vm-demo --size Standard_D2s_v5  # cambiar tamaño
+az group delete -n rg-demo --yes --no-wait               # borrar TODO el proyecto</code></pre>
+
+    <div class="caja aviso">
+      <p><strong>Cuidado:</strong> <code>az group delete</code> elimina de forma permanente todos los recursos del grupo. Verifica el nombre antes de ejecutarlo.</p>
+    </div>
+  </section>
+
+  <!-- ===================== 5. PROBLEMAS Y SOLUCIONES ===================== -->
+  <section class="panel" id="p5">
+    <h2>Problemas comunes y sus soluciones</h2>
+    <p>Pulsa sobre cada problema para ver las causas probables y cómo resolverlo.</p>
+
+    <details>
+      <summary>No puedo conectarme por SSH o RDP <span class="etiqueta red">Red</span></summary>
+      <div class="detalle">
+        <h4>Causas probables</h4>
+        <ul>
+          <li>La VM está apagada o aún iniciando.</li>
+          <li>El NSG no permite el puerto 22 (SSH) o 3389 (RDP) desde tu IP.</li>
+          <li>Tu IP pública cambió y ya no coincide con la regla.</li>
+          <li>El firewall del sistema operativo bloquea la conexión.</li>
+          <li>El servicio SSH/RDP no está en ejecución.</li>
+        </ul>
+        <h4>Solución</h4>
+        <ol>
+          <li>Verifica en el portal que el estado sea <strong>En ejecución</strong>.</li>
+          <li>Revisa <em>Redes → Reglas de puerto de entrada</em> y agrega tu IP actual.</li>
+          <li>Usa <strong>Network Watcher → Solución de problemas de conexión</strong> para ver dónde se corta.</li>
+          <li>Si nada funciona, entra por la <strong>Consola serie</strong> o usa <em>Restablecer contraseña</em> desde el portal.</li>
+        </ol>
+<pre><code>az vm open-port -g rg-demo -n vm-demo --port 22
+az vm show -d -g rg-demo -n vm-demo --query powerState</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>Mi sitio web en la VM no carga desde internet <span class="etiqueta red">Red</span></summary>
+      <div class="detalle">
+        <h4>Causas probables</h4>
+        <ul>
+          <li>El puerto 80 o 443 no está abierto en el NSG.</li>
+          <li>El servidor web (Apache, Nginx, IIS) no está iniciado.</li>
+          <li>La aplicación escucha solo en <code>127.0.0.1</code> y no en todas las interfaces.</li>
+          <li>Firewall del sistema operativo (ufw, firewalld, Windows Firewall).</li>
+        </ul>
+        <h4>Solución</h4>
+        <ol>
+          <li>Abre los puertos 80/443 en el NSG.</li>
+          <li>Comprueba el servicio: <code>sudo systemctl status nginx</code>.</li>
+          <li>Verifica que escuche en <code>0.0.0.0</code>: <code>ss -tlnp</code>.</li>
+          <li>Permite el tráfico en el firewall local: <code>sudo ufw allow 80,443/tcp</code>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>La IP pública de mi servidor cambia al reiniciar <span class="etiqueta red">Red</span></summary>
+      <div class="detalle">
+        <h4>Causa</h4>
+        <p>La IP pública se creó con asignación <strong>dinámica</strong>: puede cambiar cuando la VM se desasigna.</p>
+        <h4>Solución</h4>
+        <p>Cambia la dirección IP a <strong>estática</strong> desde <em>Dirección IP pública → Configuración → Asignación → Estática</em>, o configura un nombre DNS para la IP. Ten en cuenta que las IP estáticas pueden tener un costo asociado.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>La VM está lenta o con CPU al 100 % <span class="etiqueta">Rendimiento</span></summary>
+      <div class="detalle">
+        <h4>Causas probables</h4>
+        <ul>
+          <li>El tamaño de la VM es pequeño para la carga.</li>
+          <li>Serie B sin créditos de CPU suficientes (se limita el rendimiento).</li>
+          <li>Disco lento (HDD estándar) con muchas operaciones de lectura/escritura.</li>
+          <li>Un proceso consume demasiados recursos o hay poca RAM libre.</li>
+        </ul>
+        <h4>Solución</h4>
+        <ol>
+          <li>Revisa <strong>Métricas</strong> en Azure Monitor: CPU, memoria, IOPS de disco y red.</li>
+          <li>Identifica el proceso culpable con <code>top</code>/<code>htop</code> o el Administrador de tareas.</li>
+          <li>Aumenta el tamaño de la VM (<em>Tamaño → Cambiar</em>) o pasa a una serie D.</li>
+          <li>Cambia a un disco SSD premium si el cuello de botella es el almacenamiento.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>El disco está lleno <span class="etiqueta">Rendimiento</span></summary>
+      <div class="detalle">
+        <h4>Solución</h4>
+        <ol>
+          <li>Busca qué ocupa espacio: <code>du -sh /* 2&gt;/dev/null | sort -h</code>. Limpia logs y archivos temporales.</li>
+          <li>Si necesitas más capacidad, <strong>desasigna la VM</strong> y amplía el disco desde <em>Discos → Tamaño y rendimiento</em>.</li>
+          <li>Inicia la VM y extiende la partición y el sistema de archivos dentro del sistema operativo.</li>
+        </ol>
+<pre><code>az vm deallocate -g rg-demo -n vm-demo
+az disk update -g rg-demo -n NOMBRE_DISCO --size-gb 128
+az vm start -g rg-demo -n vm-demo</code></pre>
+        <p><strong>Nota:</strong> los discos solo se pueden ampliar, no reducir. Haz un respaldo antes.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>La VM no arranca o queda en “Error de inicio” <span class="etiqueta">Rendimiento</span></summary>
+      <div class="detalle">
+        <h4>Causas probables</h4>
+        <ul>
+          <li>Sistema de archivos dañado, actualización fallida o archivo <code>fstab</code> incorrecto.</li>
+          <li>Cambio de configuración que impide el arranque.</li>
+        </ul>
+        <h4>Solución</h4>
+        <ol>
+          <li>Activa y revisa <strong>Diagnósticos de arranque</strong> (captura de pantalla y registro serie).</li>
+          <li>Entra por la <strong>Consola serie</strong> para corregir la configuración.</li>
+          <li>Usa <code>az vm repair</code> para crear una VM de rescate y reparar el disco del sistema.</li>
+          <li>Como último recurso, restaura desde un respaldo o una instantánea del disco.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Me cobran aunque tengo la VM “apagada” <span class="etiqueta costo">Costos</span></summary>
+      <div class="detalle">
+        <h4>Causa</h4>
+        <p>Si apagas la VM desde dentro del sistema operativo, queda en estado <strong>Detenida</strong> pero Azure sigue reservando el hardware y <strong>continúa cobrando el cómputo</strong>.</p>
+        <h4>Solución</h4>
+        <ol>
+          <li>Apaga desde el portal o CLI hasta que el estado sea <strong>Desasignada</strong> (<em>Deallocated</em>).</li>
+          <li>Recuerda que discos, IP públicas estáticas y respaldos siguen generando cargos aunque la VM esté desasignada.</li>
+          <li>Configura el <strong>apagado automático</strong> de la VM para entornos de prueba.</li>
+        </ol>
+<pre><code>az vm deallocate -g rg-demo -n vm-demo</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>La factura de Azure es más alta de lo esperado <span class="etiqueta costo">Costos</span></summary>
+      <div class="detalle">
+        <h4>Solución</h4>
+        <ol>
+          <li>Abre <strong>Cost Management + Billing → Análisis de costos</strong> y agrupa por servicio o grupo de recursos.</li>
+          <li>Busca recursos olvidados: discos sin adjuntar, IP públicas sin uso, VM encendidas sin necesidad.</li>
+          <li>Crea <strong>presupuestos y alertas</strong> para que te avisen al acercarte al límite.</li>
+          <li>Revisa las recomendaciones de <strong>Azure Advisor</strong> (redimensionar, apagar, reservar).</li>
+          <li>Para cargas estables evalúa <strong>Reservas</strong> o <strong>Savings Plan</strong>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Error de cuota o “SKU no disponible” al crear la VM <span class="etiqueta costo">Cuotas</span></summary>
+      <div class="detalle">
+        <h4>Causas probables</h4>
+        <ul>
+          <li>Superaste el límite de núcleos (vCPU) de tu suscripción en esa región.</li>
+          <li>El tamaño elegido no está disponible en la región o zona seleccionada.</li>
+        </ul>
+        <h4>Solución</h4>
+        <ol>
+          <li>Ve a <strong>Suscripciones → Uso y cuotas</strong> y solicita un aumento de cuota.</li>
+          <li>Prueba otro tamaño de VM u otra región.</li>
+          <li>Consulta disponibilidad: <code>az vm list-skus --location eastus --size Standard_D -o table</code>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Olvidé la contraseña o perdí la clave SSH <span class="etiqueta red">Acceso</span></summary>
+      <div class="detalle">
+        <h4>Solución</h4>
+        <ol>
+          <li>En el portal abre la VM y entra a <strong>Ayuda → Restablecer contraseña</strong>.</li>
+          <li>Puedes cambiar la contraseña o cargar una nueva clave pública SSH.</li>
+          <li>Desde la CLI:</li>
+        </ol>
+<pre><code>az vm user update -g rg-demo -n vm-demo \
+  --username azureuser --password 'NuevaClaveSegura#2026'</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>Borré datos o necesito recuperar el servidor <span class="etiqueta">Respaldo</span></summary>
+      <div class="detalle">
+        <h4>Solución</h4>
+        <ul>
+          <li>Si tenías <strong>Azure Backup</strong>: ve al almacén de Recovery Services y restaura la VM o archivos concretos.</li>
+          <li>Si hiciste <strong>instantáneas</strong> del disco: crea un disco nuevo desde la instantánea y adjúntalo.</li>
+          <li>Si no hay respaldo, la recuperación no está garantizada: activa Azure Backup <em>desde hoy</em>.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== 6. BUENAS PRÁCTICAS ===================== -->
+  <section class="panel" id="p6">
+    <h2>Buenas prácticas</h2>
+
+    <div class="grid">
+      <div class="card">
+        <span class="icono">🔐</span>
+        <h3>Seguridad</h3>
+        <ul>
+          <li>Usa claves SSH en lugar de contraseñas.</li>
+          <li>No abras RDP/SSH a todo internet; limita por IP o usa Azure Bastion / acceso Just-In-Time.</li>
+          <li>Activa Microsoft Defender for Cloud.</li>
+          <li>Mantén el sistema y el software actualizados.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="icono">💾</span>
+        <h3>Respaldo y continuidad</h3>
+        <ul>
+          <li>Configura Azure Backup con retención adecuada.</li>
+          <li>Prueba restaurar de vez en cuando.</li>
+          <li>Para producción, usa zonas de disponibilidad o conjuntos de disponibilidad.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="icono">📈</span>
+        <h3>Monitoreo</h3>
+        <ul>
+          <li>Habilita Azure Monitor y diagnósticos de arranque.</li>
+          <li>Crea alertas de CPU, disco y disponibilidad.</li>
+          <li>Centraliza registros en Log Analytics.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="icono">💰</span>
+        <h3>Control de costos</h3>
+        <ul>
+          <li>Define presupuestos con alertas.</li>
+          <li>Apaga (desasigna) lo que no uses.</li>
+          <li>Ajusta el tamaño según el uso real.</li>
+          <li>Etiqueta los recursos por proyecto o equipo.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="icono">🗂️</span>
+        <h3>Organización</h3>
+        <ul>
+          <li>Un grupo de recursos por proyecto o entorno.</li>
+          <li>Nombres consistentes, por ejemplo <code>vm-web-prod-01</code>.</li>
+          <li>Automatiza con Azure CLI, Bicep o Terraform.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="caja">
+      <p><strong>Consejo final:</strong> empieza con un entorno de pruebas pequeño, practica los problemas de la sección anterior y, cuando tengas confianza, replica la configuración en producción.</p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===================== PIE DE PÁGINA / CONTACTO ===================== -->
+<footer>
+  <div class="footer-in">
+    <div>
+      <h3>☁ Servidores en Azure</h3>
+      <p>Guía práctica con información básica, problemas comunes y soluciones para administrar servidores en Microsoft Azure.</p>
+    </div>
+
+    <!-- ✏️ EDITA AQUÍ TUS DATOS DE CONTACTO -->
+    <div>
+      <h3>Contacto</h3>
+      <ul>
+        <li>👤 <strong>Ariel Benavides</strong></li>
+        <li>✉️ <a href="mailto:tucorreo@ejemplo.com">brnavidesprincipal@gmail.com</a></li>
+        <li>📞 <a href="tel:+50200000000">+503 0000 0000</a></li>
+        <li>📍 New York, Estados Unidos</li>
+      </ul>
+    </div>
+
+    <div>
+      <h3>Redes y enlaces</h3>
+      <ul>
+        <li>💻 <a href="https://github.com/vx120hz" target="_blank" rel="noopener">GitHub</a></li>
+        <li>📘 <a href="https://learn.microsoft.com/es-es/azure/" target="_blank" rel="noopener">Documentación oficial de Azure</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="copy">© 2026 Ariel Benavides. Sitio informativo independiente; Microsoft Azure es una marca de Microsoft Corporation.</div>
+</footer>
+
+</body>
+</html>
